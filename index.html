@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Interactive Schools JavaScript Exercise</title>
+  <meta name="description" content="Interactive Schools JavaScript Exercise by Doug Greenwood">
+  <meta name="author" content="SitePoint">
+  <style>
+      body {
+          font: 12px normal Tahoma, Arial;
+      }
+      h1 {
+          font-size: 16px;
+      }
+      button {
+          margin: 10px;
+      }
+  </style>
+</head>
+<body>
+    <h1>Interactive Schools JavaScript Exercise by Doug Greenwood</h1>
+    <p>Notes/instructions:</p>
+    <ol>
+        <li>Check the console for log messages for each stage of the process.</li>
+        <li>Buttons must be clicked in the correct order.</li>
+        <li>NB: All requests from the API will fail 1/5 times - this will be detected in the console log. If this happens, click that button again.</li>
+        <li>You may have to start again if you get CORS-related errors.</li>
+        <li>The JavaScript uses fetch (so would need a babel polyfill to work in Internet Explorer).</li>
+    </ol>
+    <button id="initialGetKey" onclick="initialGetKey()">Get initial key</button> (Get initial key object).<br />
+    <button id="stage1" onclick="stage1(overallHighestValue)">Run stage 1</button> (Check for highest value, then get the array corresponding to this).<br />
+    <button id="stage2" onclick="stage2(stage1Keys)">Run stage 2 (part 1)</button> (Compile an array of objects based on the stage 1 result...)<br />
+    <button id="stage2" onclick="stage2part2(stage2Array)">Run stage 2 (part 2)</button> (... then for each object request a random number and add this to each object (NB: you should still be able to continue even with console errors)...)<br />
+    <button id="stage2" onclick="stage2part3(stage2Part2Array)">Run stage 2 (part 3)</button> (... then find the highest random number and its key value).<br />
+    <button id="stage3" onclick="stage3(stage3Key)">Run stage 3</button> (Add this key value to a URL and get this result).<br />
+    <button id="stage4" onclick="stage4(stage3Result, stage3ResultFallback)">Run stage 4</button> (Get new key values and results - keep clicking until the "Success: You did it !" message appears in console.)
+  <script>       
+        // Global variables and constants: 
+        const url='https://intschools-javascript-test.firebaseapp.com/getKey';
+        var overallHighestValue;
+        var stage1Keys;
+        var stage2Array = [];
+        var stage2Part2Array = [];
+        var stage3Key;
+        var stage3Result;
+        var stage3ResultFallback = null;
+
+        /* INITIAL GET KEY NOTES:
+            The function takes the url const, fetches the result. It also runs the check to see which result has the highest value.
+        */
+        function initialGetKey(){
+            fetch(url)
+            .then((resp) => resp.json())
+            .then(function(data) {
+                let initialObject = data;
+                console.log("/getKey RESULT: ", initialObject);
+                // Check the object for the highest value
+                var currentHighestValue;
+                Object.keys(initialObject).reduce(function(a, b){ 
+                    initialObject[a] > initialObject[b] ? currentHighestValue = a : currentHighestValue = b;
+                    return currentHighestValue;
+                });
+                overallHighestValue = currentHighestValue;
+                return overallHighestValue;
+            })
+            .catch(function() {
+                console.log("Error getting inital key. This may be one of the requests that fails 1/5 times. Please try again.")
+            });
+        }
+
+        /* STAGE 1 NOTES:
+            The function takes the highest value's key from the initial setup, generates a new URL, fetches data from that to 
+            produce the stage1keys result.
+         */
+        function stage1(overallHighestValue){
+            var stage1url = url + "?key=" + overallHighestValue + "&stage=1";
+            fetch(stage1url)
+            .then((resp1) => resp1.json())
+            .then(function(data1) {
+                stage1Keys = data1;
+                console.log("STAGE 1 RESULT: ", stage1Keys);
+            })
+            .catch(function() {
+                console.log("Error at Stage 1. This may be one of the requests that fails 1/5 times. Please try again.")
+            });
+        }
+
+        /* STAGE 2 NOTES:
+            I divided this into 3 parts (with more time, I would look at combining this into just one function).
+            stage2(): Compiles objects within the array, with keys of "url", "key", and "result". NB: At this stage "result" is null
+            stage2part2(): This fetches the result random numbers for each object (it runs stage2getEach for each object)
+            stage2part3(): This looks at the results of each object and finds the largest, and identifies the key for this object.
+        */
+        function stage2(stage2ArrayArg){
+            // Reset the array each time stage2 is run
+            stage2Array = [];
+            for (var i = 0; i < stage2ArrayArg.length; i++) {
+                    // Compile an object
+                    let stage2ObjectInstance = {};
+                    stage2ObjectInstance.url = url + "?key=" + stage2ArrayArg[i] + "&stage=2";
+                    stage2ObjectInstance.key = stage2ArrayArg[i];
+                    stage2ObjectInstance.result = null;
+                    stage2Array.push(stage2ObjectInstance)
+                }
+                console.log("STAGE 2 (PART 1) RESULT:", stage2Array);
+        }
+
+        function stage2getEach(stage2ThisObject){
+            fetch(stage2ThisObject.url)
+                .then((resp2) => resp2.json())
+                .then(function(data2){
+                    stage2ObjectInstanceResult = data2;
+                    stage2ThisObject.result = stage2ObjectInstanceResult;
+                })
+        }
+
+        function stage2part2(stage2BaseArrayParam){
+            stage2Part2Array = stage2BaseArrayParam;
+            var stage2ObjectInstanceResult;
+            for(var s20 = 0; s20 < 6; s20++){
+                stage2getEach(stage2Part2Array[0]);
+                stage2getEach(stage2Part2Array[1]);
+                stage2getEach(stage2Part2Array[2]);
+                stage2getEach(stage2Part2Array[3]);
+                stage2getEach(stage2Part2Array[4]);
+            }
+            console.log("STAGE 2 (PART 2) RESULT:", stage2Part2Array);
+            return stage2Part2Array;
+        }
+
+
+        function stage2part3(stage2aParam){
+            var stage2aArray = stage2aParam;
+            console.log(stage2aArray);
+            var stage2HighestResult = Math.max.apply(Math,stage2aArray.map(function(o){return o.result;}));
+            for (var k=0;k<stage2aArray.length;k++){
+                if(stage2aArray[k].result == stage2HighestResult){
+                    stage3Key = stage2aArray[k].key;
+                    console.log("STAGE 2 (PART 3) RESULT (Value):", stage2aArray[k].result);
+                    console.log("STAGE 2 (PART 3) RESULT (Key):", stage3Key);
+                    break;
+                }
+            }
+        }
+
+        /*  STAGE 3 NOTES:
+            The function takes the stage3key, generates the URL, and fetches the result
+        */
+        function stage3(stage3param){
+            var stage3Url = url + "?key=" + stage3param + "&stage=3";
+            fetch(stage3Url)
+            .then((resp3) => resp3.text())
+            .then(function(resp3) {
+                stage3Result = resp3;
+                console.log("STAGE 3 RESULT:", stage3Result);
+            })
+            .catch(function() {
+                console.log("Error at Stage 3. This may be one of the requests that fails 1/5 times. Please try again.")
+            });
+        }
+
+        /* STAGE 4 NOTES:
+            1. The function takes 2 parameters - the key from stage3, but also a "fallback" so that if the API returns "Ooops", the function
+            still has a key to continue with. (The first time the user runs stage 4, it uses the stage3result for both)
+            2. The function then generates the URL with the key, and fetches the new key
+            3. The if/else checks the new key:
+               - if it's "Ooops", it uses the fallback key the next time the user clicks
+               - if it's a new key, it uses this as the stage4param argument the next time the user clicks
+               - if it's "Success", the test is complete
+        */
+        function stage4(stage4param, stage4Fallbackparam){
+            var stage4Key = stage4param;
+            if(stage4Fallbackparam==null){
+                var stage4KeyFallback = stage4param;
+            }
+            let stage4url = url + "?key=" + stage4Key + "&stage=4";
+            console.log(stage4url);
+            fetch(stage4url)
+            .then((resp4) => resp4.text())
+            .then(function(data4) {
+                let stage4Result = data4;
+                if (stage4Result.startsWith("Ooops")){
+                    console.log("Iteration error, click button again to try with previous key.");
+                    stage3Result = stage4ResultFallback;
+                    stage3ResultFallback = stage4Key;
+                } else if(stage4Result.startsWith("Success")) {
+                    console.log(stage4Result);
+                } else {
+                    console.log("Iteration: ", stage4Result);
+                    stage3Result = stage4Result;
+                    stage3ResultFallback = stage4Key;
+                }
+            })
+            .catch(function() {
+                stage3Result = stage4param;
+            });
+        }
+  </script>
+</body>
+</html>
